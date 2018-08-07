@@ -26,8 +26,8 @@
 					        placeholder="{{ $date_range }}"
 						@endif
 		        		>
-		        <div class="input-group-addon">
-		          <a class="daterangepicker-{{ str_slug($filter->name) }}-clear-button" href=""><i class="fa fa-times"></i></a>
+		        <div class="input-group-addon daterangepicker-{{ str_slug($filter->name) }}-clear-button">
+		          <a class="" href=""><i class="fa fa-times"></i></a>
 		        </div>
 		    </div>
 		</div>
@@ -62,7 +62,7 @@
 	<script type="text/javascript" src="//cdn.jsdelivr.net/bootstrap.daterangepicker/2/daterangepicker.js"></script>
   <script>
 
-  		function applyDateRangeFilter(start, end) {
+  		function applyDateRangeFilter{{camel_case($filter->name)}}(start, end) {
   			if (start && end) {
   				var dates = {
 					'from': start.format('YYYY-MM-DD'),
@@ -70,37 +70,28 @@
 				};
 				var value = JSON.stringify(dates);
   			} else {
-  				var value = null;
+  				//this change to empty string,because addOrUpdateUriParameter method just judgment string
+  				var value = '';
   			}
 			var parameter = '{{ $filter->name }}';
 
-			@if (!$crud->ajaxTable())
-				// behaviour for normal table
-				var current_url = normalizeAmpersand('{{ Request::fullUrl() }}');
-				var new_url = addOrUpdateUriParameter(current_url, parameter, value);
+	    	// behaviour for ajax table
+			var ajax_table = $('#crudTable').DataTable();
+			var current_url = ajax_table.ajax.url();
+			var new_url = addOrUpdateUriParameter(current_url, parameter, value);
 
-				// refresh the page to the new_url
-				new_url = normalizeAmpersand(new_url.toString());
-		    	window.location.href = new_url;
-		    @else
-		    	// behaviour for ajax table
-				var ajax_table = $('#crudTable').DataTable();
-				var current_url = ajax_table.ajax.url();
-				var new_url = addOrUpdateUriParameter(current_url, parameter, value);
+			// replace the datatables ajax url with new_url and reload it
+			new_url = normalizeAmpersand(new_url.toString());
+			ajax_table.ajax.url(new_url).load();
 
-				// replace the datatables ajax url with new_url and reload it
-				new_url = normalizeAmpersand(new_url.toString());
-				ajax_table.ajax.url(new_url).load();
-
-				// mark this filter as active in the navbar-filters
-				if (URI(new_url).hasQuery('{{ $filter->name }}', true)) {
-					$('li[filter-name={{ $filter->name }}]').removeClass('active').addClass('active');
-				}
-				else
-				{
-					$('li[filter-name={{ $filter->name }}]').trigger('filter:clear');
-				}
-		    @endif
+			// mark this filter as active in the navbar-filters
+			if (URI(new_url).hasQuery('{{ $filter->name }}', true)) {
+				$('li[filter-name={{ $filter->name }}]').removeClass('active').addClass('active');
+			}
+			else
+			{
+				$('li[filter-name={{ $filter->name }}]').trigger('filter:clear');
+			}
   		}
 
 		jQuery(document).ready(function($) {
@@ -120,10 +111,11 @@
 				@endif
 				alwaysShowCalendars: true,
 				autoUpdateInput: true
-			},
-			function (start, end) {
-				applyDateRangeFilter(start, end);
 			});
+
+			dateRangeInput.on('apply.daterangepicker', function(ev, picker) {
+        applyDateRangeFilter{{camel_case($filter->name)}}(picker.startDate, picker.endDate);
+      });
 
 			$('li[filter-name={{ $filter->name }}]').on('hide.bs.dropdown', function () {
 				if($('.daterangepicker').is(':visible'))
@@ -132,15 +124,14 @@
 
 			$('li[filter-name={{ $filter->name }}]').on('filter:clear', function(e) {
 				// console.log('daterangepicker filter cleared');
+				//if triggered by remove filters click just remove active class,no need to send ajax
 				$('li[filter-name={{ $filter->name }}]').removeClass('active');
-				applyDateRangeFilter(null, null);
 			});
 
 			// datepicker clear button
 			$(".daterangepicker-{{ str_slug($filter->name) }}-clear-button").click(function(e) {
 				e.preventDefault();
-
-				$('li[filter-name={{ $filter->name }}]').trigger('filter:clear');
+				applyDateRangeFilter{{camel_case($filter->name)}}(null, null);
 			})
 		});
   </script>
